@@ -1,2 +1,2 @@
 # higher-order-substitution
-Algorithm by Huet, using eta-extensions.
+Algorithm by Huet, using eta-extension.

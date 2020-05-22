@@ -26,12 +26,10 @@ object Traversal {
     val q = mutable.Queue(BFSNode(init, Map.empty))
     while (q.nonEmpty) {
       q.dequeue() match {
-        case BFSNode(Tree.Leaf(F), _)           =>
+        case BFSNode(Tree.Leaf(F), _) =>
         case BFSNode(Tree.Leaf(S(last)), subst) => S(last ++ subst)
         case BFSNode(t: TreeNode, subst) =>
-          q ++= children(t).map(
-            c => BFSNode(c.to, subst + (c.subst.v -> c.subst.e))
-          )
+          q ++= children(t).map(c => BFSNode(c.to, subst + (c.subst.v -> c.subst.e)))
       }
     }
     F
@@ -39,9 +37,14 @@ object Traversal {
 
   // Top-level
   def unify(e1: Term, e2: Term): Option[Res] = {
-    Option(Await.result(Future {
-      val init = SIMPL(Set(Disagreement(e1, e2)))
-      bfs(init)
-    }, Duration(5L, SECONDS)))
+    Option(
+      Await.result(
+        Future {
+          val init = SIMPL(Set(Disagreement(e1, e2)))
+          bfs(init)
+        },
+        Duration(5L, SECONDS)
+      )
+    )
   }
 }

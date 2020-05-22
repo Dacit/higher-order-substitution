@@ -44,31 +44,34 @@ object Algorithm {
     }
   }
 
-  def SIMPL(N: Set[Disagreement]): Node = SIMPLStep1(N) match {
-    case None    => Leaf(F)
-    case Some(n) => SIMPLStep3(SIMPLStep2(n))
-  }
+  def SIMPL(N: Set[Disagreement]): Node =
+    SIMPLStep1(N) match {
+      case None => Leaf(F)
+      case Some(n) => SIMPLStep3(SIMPLStep2(n))
+    }
 
-  private def MATCH_imitate(n1: Int,
-                            f: Free,
-                            e1: Vector[Term],
-                            n2: Int,
-                            c: Const,
-                            e2: Vector[Term],
-                            V: Set[Variable]): Iterator[SubstPair] = {
+  private def MATCH_imitate(
+      n1: Int,
+      f: Free,
+      e1: Vector[Term],
+      n2: Int,
+      c: Const,
+      e2: Vector[Term],
+      V: Set[Variable]): Iterator[SubstPair] = {
     val hs = ???
     ///val E = hs.map(i => Term(0, )???)
     //Iterator(SubstPair(f.name, Term(e1.length, c, ???, ???)))
     ???
   }
 
-  private def MATCH_project(n1: Int,
-                            f: Free,
-                            e1: Vector[Term],
-                            n2: Int,
-                            b: Bound,
-                            e2: Vector[Term],
-                            V: Set[Variable]): Iterator[SubstPair] = ???
+  private def MATCH_project(
+      n1: Int,
+      f: Free,
+      e1: Vector[Term],
+      n2: Int,
+      b: Bound,
+      e2: Vector[Term],
+      V: Set[Variable]): Iterator[SubstPair] = ???
 
   def MATCH(e1: Term, e2: Term, v: Set[Variable]): Iterator[SubstPair] = {
     (e1.head, e2.head) match {
