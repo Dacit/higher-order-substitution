@@ -1,7 +1,7 @@
 import Head.{Bound, Const, Free}
 import Tree.SubstPair
-import Type.{E, Fn}
 import Type.T0._
+import Type.{E, Fn}
 import org.scalatest.{FunSuite, Matchers}
 
 class TermTest extends FunSuite with Matchers {
@@ -12,7 +12,7 @@ class TermTest extends FunSuite with Matchers {
     val C = Term(Const("C"), Vector(c0, c1), E(Beta))
     val t = Term(Vector(Abs(Fn(E(Beta), E(Gamma)), Some("y")), Abs(E(Alpha))), Bound(1), Vector(C), E(Gamma))
 
-    t.toString should equal("λb_y x1. b_y (c_C (λx2 x3 x4. b_y f_g) f_f)")
+    t.toString should equal("λb_y x1. b_y(c_C(λx2 x3 x4. b_y(f_g), f_f))")
   }
 
   test("is rigid") {

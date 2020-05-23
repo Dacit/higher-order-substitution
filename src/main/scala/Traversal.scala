@@ -1,10 +1,10 @@
 import scala.collection.mutable
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.{Duration, SECONDS}
+import scala.concurrent.{Await, Future}
 
-import Tree.{Disagreement, F, Node, Res, S, SubstPair, Substitution, TreeNode}
 import Algorithm._
+import Tree.{Disagreement, F, Node, Res, S, SubstPair, Substitution, TreeNode}
 
 object Traversal {
   // Tree traversal helper + heuristic
@@ -40,8 +40,7 @@ object Traversal {
     Option(
       Await.result(
         Future {
-          val init = SIMPL(Set(Disagreement(e1, e2)))
-          bfs(init)
+          if (e1.typ != e2.typ) F else bfs(SIMPL(Set(Disagreement(e1, e2))))
         },
         Duration(5L, SECONDS)
       )

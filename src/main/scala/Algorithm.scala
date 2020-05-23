@@ -1,5 +1,6 @@
 import Head.{Bound, Const, Free}
 import Tree._
+import Type.{E, Fn}
 
 object Algorithm {
   private def SIMPLStep1(N: Set[Disagreement]): Option[Set[Disagreement]] = {
@@ -9,13 +10,13 @@ object Algorithm {
       Some(nPrime)
     } else {
       val exploded = rigidRigid.flatMap { d =>
-        if (d.e1.head != d.e2.head) {
+        if (d.e1.head != d.e2.head || d.e1.binder.map(_.typ) != d.e2.binder.map(_.typ)) {
           return None
         } else {
-          val n = d.e1.binder.length
+          val binder = d.e1.binder
           d.e1.args.zip(d.e2.args).map {
             case (ei1, ei2) =>
-              ??? //Disagreement(ei1.copy(n = ei1.binder.length + n), ei2.copy(n = ei2.binder.length + n))
+              Disagreement(ei1.copy(binder = binder ++ ei1.binder), ei2.copy(binder = binder ++ ei2.binder))
           }
         }
       }
@@ -35,12 +36,14 @@ object Algorithm {
       TreeNode(N)
     } else {
       // Only flex-flex pairs
-      val (e1s, e2s) = N.unzip(d => (d.e1, d.e2))
-      val subst = (e1s ++ e2s).map {
-        case Term(_, Free(name), _, typ) => ???
-        case _ => throw new IllegalArgumentException("Not a flex-flex pair")
-      }
-      Leaf(S(subst.toMap))
+      val free = N.flatMap(d => d.e1.free ++ d.e2.free).toSet
+
+      val subst = free.map {
+        case v @ Variable(_, Fn(args, res)) => v -> Term(args.map(Abs(_)), Free(Variable.fresh("h", res, free)), res)
+        case v @ Variable(_, e: E) => v -> Term(Free(Variable.fresh("h", e, free)), e)
+      }.toMap
+
+      Leaf(S(subst))
     }
   }
 

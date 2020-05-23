@@ -2,25 +2,34 @@ import scala.math.max
 
 import Head._
 import Tree.SubstPair
+import Type.T0.Alpha
 import Type._
 
 case class Abs(typ: Type, display: Option[String] = None)
 
 case class Variable(name: String, typ: Type)
-
-case class Term(binder: Vector[Abs], head: Head, args: Vector[Term], ret: E) {
-  // Pretty-printing
-  override def toString: String = prettyInternal(Vector.empty)
-
-  private def innerPretty(v: Vector[Option[String]]): String = {
-    if (binder.isEmpty && args.isEmpty) prettyInternal(v) else s"(${prettyInternal(v)})"
+object Variable {
+  def fresh(prefix: String, typ: Type, vars: Set[Variable]): String = {
+    var i = 0
+    var name = s"$prefix$i"
+    while (vars.contains(Variable(name, typ))) {
+      i += 1
+      name = s"$prefix$i"
+    }
+    name
   }
+}
 
-  private def prettyInternal(v: Vector[Option[String]]): String = {
+case class Term(binder: Vector[Abs], head: Head, args: Vector[Term], ret: Type) {
+  // Pretty-printing
+  override def toString: String = pretty(Vector.empty)
+
+  private def pretty(v: Vector[Option[String]]): String = {
     val vNew = v ++ binder.map(_.display)
     val b = if (binder.isEmpty) "" else s"λ${binder.indices.reverse.map(Bound(_).pretty(vNew)).mkString(" ")}. "
+    val e = if (args.isEmpty) "" else s"(${args.map(_.pretty(vNew)).mkString(", ")})"
 
-    s"$b${head.pretty(vNew)}${args.map(t => s" ${t.innerPretty(vNew)}").mkString}"
+    s"$b${head.pretty(vNew)}$e"
   }
 
   // Checks
@@ -97,9 +106,30 @@ case class Term(binder: Vector[Abs], head: Head, args: Vector[Term], ret: E) {
   }
 }
 object Term {
-  def apply(head: Head, ret: E): Term = new Term(Vector.empty, head, Vector.empty, ret)
-  def apply(binder: Vector[Abs], head: Head, ret: E): Term = new Term(binder, head, Vector.empty, ret)
-  def apply(head: Head, args: Vector[Term], ret: E): Term = new Term(Vector.empty, head, args, ret)
+  def apply(head: Head): Term = Term(head, E(Alpha))
+  def apply(head: Head, ret: Type): Term = Term(Vector.empty, head, ret)
+  def apply(n: Int, head: Head): Term = Term(Vector.fill(n)(Abs(E(Alpha))), head, E(Alpha))
+  def apply(n: Int, head: Head, ret: Type): Term = Term(Vector.fill(n)(Abs(E(Alpha))), head, ret)
+  def apply(binder: Vector[Abs], head: Head): Term = Term(binder, head, E(Alpha))
+  def apply(binder: Vector[Abs], head: Head, args: Vector[Term]): Term = Term(binder, head, args, E(Alpha))
+  def apply(binder: Abs, head: Head, args: Vector[Term]): Term = Term(Vector(binder), head, args, E(Alpha))
+  def apply(binder: Vector[Abs], head: Head, args: Term): Term = Term(binder, head, args, E(Alpha))
+  def apply(binder: Abs, head: Head): Term = Term(Vector(binder), head, E(Alpha))
+  def apply(binder: Vector[Abs], head: Head, ret: Type): Term = Term(binder, head, Vector.empty, ret)
+  def apply(binder: Abs, head: Head, ret: Type): Term = Term(Vector(binder), head, ret)
+  def apply(head: Head, args: Vector[Term]): Term = Term(head, args, E(Alpha))
+  def apply(head: Head, args: Term): Term = Term(head, Vector(args), E(Alpha))
+  def apply(head: Head, args: Vector[Term], ret: Type): Term = Term(Vector.empty, head, args, ret)
+  def apply(head: Head, args: Term, ret: Type): Term = Term(head, Vector(args), ret)
+  def apply(n: Int, head: Head, args: Vector[Term]): Term = Term(Vector.fill(n)(Abs(E(Alpha))), head, args, E(Alpha))
+  def apply(n: Int, head: Head, args: Term): Term = Term(Vector.fill(n)(Abs(E(Alpha))), head, Vector(args), E(Alpha))
+  def apply(n: Int, head: Head, args: Vector[Term], ret: Type): Term =
+    Term(Vector.fill(n)(Abs(E(Alpha))), head, args, ret)
+  def apply(n: Int, head: Head, args: Term, ret: Type): Term =
+    Term(Vector.fill(n)(Abs(E(Alpha))), head, Vector(args), ret)
+  def apply(binder: Abs, head: Head, args: Vector[Term], ret: Type): Term = Term(Vector(binder), head, args, ret)
+  def apply(binder: Vector[Abs], head: Head, args: Term, ret: Type): Term = Term(binder, head, Vector(args), ret)
+  def apply(binder: Abs, head: Head, args: Term, ret: Type): Term = Term(Vector(binder), head, Vector(args), ret)
 }
 
 sealed trait Head {
