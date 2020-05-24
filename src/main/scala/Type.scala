@@ -1,31 +1,34 @@
-sealed trait Type {
-  override def toString: String =
-    this match {
-      case Type.E(t) => t.toString
-      case Type.Fn(args, res) => s"${args.map(_.innerToString).mkString(", ")} → ${res.innerToString}"
-    }
-  private def innerToString: String =
-    this match {
-      case Type.E(t) => t.toString
-      case t: Type.Fn => s"($t)"
-    }
+import scala.language.implicitConversions
+
+trait T0
+object T0 {
+  def apply(): T0 = Alpha
+  case object Alpha extends T0 { override def toString: String = "α" }
+  case object Beta extends T0 { override def toString: String = "β" }
+  case object Gamma extends T0 { override def toString: String = "γ" }
 }
+case class Type(args: Vector[Type], ret: T0) {
+  def isElementary: Boolean = args.isEmpty
 
-object Type {
-
-  trait T0
-  object T0 {
-    case object Alpha extends T0 { override def toString: String = "α" }
-    case object Beta extends T0 { override def toString: String = "β" }
-    case object Gamma extends T0 { override def toString: String = "γ" }
+  override def toString: String = {
+    val h = if (isElementary) "" else s"${args.map(_.innerToString).mkString(", ")} → "
+    s"$h$ret"
   }
-  case class E(t: T0) extends Type
-  case class Fn(args: Vector[Type], res: Type) extends Type
-  object Fn {
-    def apply(arg1: Type, arg2: Type, args: Type*): Fn = {
-      val allArgs = arg1 +: arg2 +: args
 
-      Fn(allArgs.dropRight(1).toVector, allArgs.last)
+  private def innerToString: String = {
+    if (isElementary) toString else s"($toString)"
+  }
+}
+object Type {
+  implicit def apply(e: T0): Type = Type(Vector.empty, e)
+}
+object Fn {
+  // C-tors
+  def apply(arg: Type, moreArgs: Type*): Type = {
+    val args = arg +: moreArgs
+    if (!args.last.isElementary) {
+      throw new IllegalArgumentException("Last type must be elementary!")
     }
+    Type(args.dropRight(1).toVector, args.last.ret)
   }
 }

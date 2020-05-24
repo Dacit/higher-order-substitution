@@ -2,25 +2,23 @@ import scala.math.max
 
 import Head._
 import Tree.SubstPair
-import Type.T0.Alpha
-import Type._
 
 case class Abs(typ: Type, display: Option[String] = None)
 
 case class Variable(name: String, typ: Type)
 object Variable {
   def fresh(prefix: String, typ: Type, vars: Set[Variable]): String = {
-    var i = 0
-    var name = s"$prefix$i"
+    var i = -1
+    var name = prefix
     while (vars.contains(Variable(name, typ))) {
       i += 1
-      name = s"$prefix$i"
+      name = s"${prefix}_$i"
     }
     name
   }
 }
 
-case class Term(binder: Vector[Abs], head: Head, args: Vector[Term], ret: Type) {
+case class Term(binder: Vector[Abs], head: Head, args: Vector[Term], ret: T0) {
   // Pretty-printing
   override def toString: String = pretty(Vector.empty)
 
@@ -36,13 +34,8 @@ case class Term(binder: Vector[Abs], head: Head, args: Vector[Term], ret: Type) 
   def isRigid: Boolean = head.isRigid
 
   // Type inference
-  def typ: Type = {
-    if (binder.isEmpty) ret else Fn(binder.map(_.typ), ret)
-  }
-
-  def headType: Type = {
-    if (args.isEmpty) ret else Fn(args.map(_.typ), ret)
-  }
+  def typ: Type = Type(binder.map(_.typ), ret)
+  def headType: Type = Type(args.map(_.typ), ret)
 
   // Free variables
   def free: Set[Variable] =
@@ -55,29 +48,14 @@ case class Term(binder: Vector[Abs], head: Head, args: Vector[Term], ret: Type) 
   def subst(p: SubstPair): Term =
     head match {
       case Free(name) if name == p.v.name && headType == p.v.typ =>
+        // First substitute in variables
         val args = this.args.map(_.subst(p))
-        substitute(p.e, args)
+        // Then build new term
+        applySubst(p.e, args)
       case _ => copy(args = args.map(_.subst(p)))
     }
 
-  private def substBounds(start: Int, range: Vector[Term], shift: Int): Term = {
-    if (range.isEmpty) {
-      this
-    } else {
-      val n = binder.length
-      head match {
-        case Bound(idx) if idx - n >= start && idx - n < start + range.length =>
-          val subst = range((range.length - 1 + start) - (idx - n))
-          val args = this.args.map(_.substBounds(start + n, range, shift + n))
-
-          substitute(subst.shiftBounds(shift), args)
-
-        case _ => copy(args = args.map(_.substBounds(start + n, range, shift + n)))
-      }
-    }
-  }
-
-  private def substitute(subst: Term, substArgs: Vector[Term]): Term = {
+  private def applySubst(subst: Term, substArgs: Vector[Term]): Term = {
     val m = subst.binder.length
     val p1 = args.length
     val k = max(0, m - p1)
@@ -89,6 +67,23 @@ case class Term(binder: Vector[Abs], head: Head, args: Vector[Term], ret: Type) 
       head = subst.head,
       args = subst.args.map(_.substBounds(k, argsInner, k)) ++ argsOuter
     )
+  }
+
+  private def substBounds(start: Int, range: Vector[Term], shift: Int): Term = {
+    if (range.isEmpty) {
+      this
+    } else {
+      val n = binder.length
+      head match {
+        case Bound(idx) if idx - n >= start && idx - n < start + range.length =>
+          val subst = range((range.length - 1 + start) - (idx - n))
+          val args = this.args.map(_.substBounds(start + n, range, shift + n))
+
+          applySubst(subst.shiftBounds(shift), args)
+
+        case _ => copy(args = args.map(_.substBounds(start + n, range, shift + n)))
+      }
+    }
   }
 
   private def shiftBounds(shift: Int, outer: Int = 0): Term = {
@@ -106,30 +101,31 @@ case class Term(binder: Vector[Abs], head: Head, args: Vector[Term], ret: Type) 
   }
 }
 object Term {
-  def apply(head: Head): Term = Term(head, E(Alpha))
-  def apply(head: Head, ret: Type): Term = Term(Vector.empty, head, ret)
-  def apply(n: Int, head: Head): Term = Term(Vector.fill(n)(Abs(E(Alpha))), head, E(Alpha))
-  def apply(n: Int, head: Head, ret: Type): Term = Term(Vector.fill(n)(Abs(E(Alpha))), head, ret)
-  def apply(binder: Vector[Abs], head: Head): Term = Term(binder, head, E(Alpha))
-  def apply(binder: Vector[Abs], head: Head, args: Vector[Term]): Term = Term(binder, head, args, E(Alpha))
-  def apply(binder: Abs, head: Head, args: Vector[Term]): Term = Term(Vector(binder), head, args, E(Alpha))
-  def apply(binder: Vector[Abs], head: Head, args: Term): Term = Term(binder, head, args, E(Alpha))
-  def apply(binder: Abs, head: Head): Term = Term(Vector(binder), head, E(Alpha))
-  def apply(binder: Vector[Abs], head: Head, ret: Type): Term = Term(binder, head, Vector.empty, ret)
-  def apply(binder: Abs, head: Head, ret: Type): Term = Term(Vector(binder), head, ret)
-  def apply(head: Head, args: Vector[Term]): Term = Term(head, args, E(Alpha))
-  def apply(head: Head, args: Term): Term = Term(head, Vector(args), E(Alpha))
-  def apply(head: Head, args: Vector[Term], ret: Type): Term = Term(Vector.empty, head, args, ret)
-  def apply(head: Head, args: Term, ret: Type): Term = Term(head, Vector(args), ret)
-  def apply(n: Int, head: Head, args: Vector[Term]): Term = Term(Vector.fill(n)(Abs(E(Alpha))), head, args, E(Alpha))
-  def apply(n: Int, head: Head, args: Term): Term = Term(Vector.fill(n)(Abs(E(Alpha))), head, Vector(args), E(Alpha))
-  def apply(n: Int, head: Head, args: Vector[Term], ret: Type): Term =
-    Term(Vector.fill(n)(Abs(E(Alpha))), head, args, ret)
-  def apply(n: Int, head: Head, args: Term, ret: Type): Term =
-    Term(Vector.fill(n)(Abs(E(Alpha))), head, Vector(args), ret)
-  def apply(binder: Abs, head: Head, args: Vector[Term], ret: Type): Term = Term(Vector(binder), head, args, ret)
-  def apply(binder: Vector[Abs], head: Head, args: Term, ret: Type): Term = Term(binder, head, Vector(args), ret)
-  def apply(binder: Abs, head: Head, args: Term, ret: Type): Term = Term(Vector(binder), head, Vector(args), ret)
+  // C-tors
+  def apply(head: Head): Term = Term(head, T0())
+  def apply(head: Head, ret: T0): Term = Term(Vector.empty, head, ret)
+  def apply(n: Int, head: Head): Term = Term(Vector.fill(n)(Abs(T0())), head, T0())
+  def apply(n: Int, head: Head, ret: T0): Term = Term(Vector.fill(n)(Abs(T0())), head, ret)
+  def apply(binder: Vector[Abs], head: Head): Term = Term(binder, head, T0())
+  def apply(binder: Vector[Abs], head: Head, args: Vector[Term]): Term = Term(binder, head, args, T0())
+  def apply(binder: Abs, head: Head, args: Vector[Term]): Term = Term(Vector(binder), head, args, T0())
+  def apply(binder: Vector[Abs], head: Head, args: Term): Term = Term(binder, head, args, T0())
+  def apply(binder: Abs, head: Head): Term = Term(Vector(binder), head, T0())
+  def apply(binder: Vector[Abs], head: Head, ret: T0): Term = Term(binder, head, Vector.empty, ret)
+  def apply(binder: Abs, head: Head, ret: T0): Term = Term(Vector(binder), head, ret)
+  def apply(head: Head, args: Vector[Term]): Term = Term(head, args, T0())
+  def apply(head: Head, args: Term): Term = Term(head, Vector(args), T0())
+  def apply(head: Head, args: Vector[Term], ret: T0): Term = Term(Vector.empty, head, args, ret)
+  def apply(head: Head, args: Term, ret: T0): Term = Term(head, Vector(args), ret)
+  def apply(n: Int, head: Head, args: Vector[Term]): Term = Term(Vector.fill(n)(Abs(T0())), head, args, T0())
+  def apply(n: Int, head: Head, args: Term): Term = Term(Vector.fill(n)(Abs(T0())), head, Vector(args), T0())
+  def apply(n: Int, head: Head, args: Vector[Term], ret: T0): Term =
+    Term(Vector.fill(n)(Abs(T0())), head, args, ret)
+  def apply(n: Int, head: Head, args: Term, ret: T0): Term =
+    Term(Vector.fill(n)(Abs(T0())), head, Vector(args), ret)
+  def apply(binder: Abs, head: Head, args: Vector[Term], ret: T0): Term = Term(Vector(binder), head, args, ret)
+  def apply(binder: Vector[Abs], head: Head, args: Term, ret: T0): Term = Term(binder, head, Vector(args), ret)
+  def apply(binder: Abs, head: Head, args: Term, ret: T0): Term = Term(Vector(binder), head, Vector(args), ret)
 }
 
 sealed trait Head {
